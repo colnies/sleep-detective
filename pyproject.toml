@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sleep-detective"
+dynamic = ["version"]
+description = "Find patterns between your daily habits and your Fitbit sleep scores."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Colin Nies" }]
+dependencies = ["matplotlib>=3.5"]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6"]
+
+[project.scripts]
+sleep-detective = "sleep_detective.cli:run"
+
+[project.urls]
+Homepage = "https://github.com/colnies/sleep-detective"
+
+[tool.setuptools]
+packages = ["sleep_detective"]
+
+[tool.setuptools.dynamic]
+version = { attr = "sleep_detective.__version__" }

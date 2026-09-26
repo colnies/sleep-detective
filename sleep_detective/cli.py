@@ -1,6 +1,8 @@
 import os
+import sys
+import traceback
 
-from sleep_detective_lib import (
+from sleep_detective.analysis import (
     DEFAULT_SLEEP_DATA_FILE,
     DEFAULT_HABIT_LOG_FILE,
     DEFAULT_OUTPUT_FILE,
@@ -66,6 +68,12 @@ def wait_for_user(message: str = "Press Enter to continue, or 'b' to go back..."
     return response
 
 
+def ask_path(prompt: str, default: str) -> str:
+    # Dragging a file into a terminal pastes its path, often wrapped in quotes
+    path = input(prompt).strip().strip('"').strip("'")
+    return path or default
+
+
 def print_banner():
     clear_screen()
     print()
@@ -98,39 +106,34 @@ def get_file_inputs():
     print()
     
     print(f"Default sleep data file: {DEFAULT_SLEEP_DATA_FILE}")
-    sleep_file = input("Enter path to Fitbit sleep data (CSV) [press Enter for default]: ").strip()
-    if not sleep_file:
-        sleep_file = DEFAULT_SLEEP_DATA_FILE
-    
-    while not os.path.exists(sleep_file):
+    sleep_file = ask_path("Enter path to Fitbit sleep data (CSV) [press Enter for default]: ",
+                          DEFAULT_SLEEP_DATA_FILE)
+
+    while not os.path.isfile(sleep_file):
         print(f"\n  [!] File not found: {sleep_file}")
-        print("  Tip: Export your Fitbit sleep data as CSV first.\n")
-        sleep_file = input("Enter path to Fitbit sleep data (CSV): ").strip()
-        if not sleep_file:
-            sleep_file = DEFAULT_SLEEP_DATA_FILE
-    
+        print("  Tip: Put your Fitbit sleep_score.csv in this folder, or drag the")
+        print("       file into this window to paste its path.\n")
+        sleep_file = ask_path("Enter path to Fitbit sleep data (CSV): ", DEFAULT_SLEEP_DATA_FILE)
+
     print(f"  [OK] Found: {sleep_file}\n")
-    
+
     print(f"Default habit log file: {DEFAULT_HABIT_LOG_FILE}")
-    habit_file = input("Enter path to daily habit log (CSV) [press Enter for default]: ").strip()
-    if not habit_file:
-        habit_file = DEFAULT_HABIT_LOG_FILE
-    
-    while not os.path.exists(habit_file):
+    habit_file = ask_path("Enter path to daily habit log (CSV) [press Enter for default]: ",
+                          DEFAULT_HABIT_LOG_FILE)
+
+    while not os.path.isfile(habit_file):
         print(f"\n  [!] File not found: {habit_file}")
-        print("  Tip: Run 'python generate_data.py' first to create sample habits.\n")
-        habit_file = input("Enter path to daily habit log (CSV): ").strip()
-        if not habit_file:
-            habit_file = DEFAULT_HABIT_LOG_FILE
-    
+        print("  Tip: Start from habit_log_template.csv (see the README), or drag")
+        print("       the file into this window to paste its path.\n")
+        habit_file = ask_path("Enter path to daily habit log (CSV): ", DEFAULT_HABIT_LOG_FILE)
+
     print(f"  [OK] Found: {habit_file}\n")
-    
+
     print(f"Default output report: {DEFAULT_OUTPUT_FILE}")
-    output_file = input("Enter path for output report [press Enter for default]: ").strip()
-    if not output_file:
-        output_file = DEFAULT_OUTPUT_FILE
-    
-    print(f"  [OK] Output will be saved to: {output_file}\n")
+    output_file = ask_path("Enter path for output report [press Enter for default]: ",
+                           DEFAULT_OUTPUT_FILE)
+
+    print(f"  [OK] Output will be saved to: {os.path.abspath(output_file)}\n")
     
     return sleep_file, habit_file, output_file
 
@@ -546,9 +549,9 @@ def main():
     print("=" * 60)
     print()
     print(f"  Total data points analyzed: {len(snapshots):,}")
-    print(f"  Report saved to: {output_file}")
+    print(f"  Report saved to: {os.path.abspath(output_file)}")
     print()
-    print("  Generated charts:")
+    print(f"  Generated charts (in {os.getcwd()}):")
     print("    * chart_caffeine_impact.png")
     print("    * chart_magnesium_impact.png")
     print("    * chart_exercise_impact.png")
@@ -563,5 +566,31 @@ def main():
     return 0
 
 
+def run():
+    # A double-clicked executable gets its own console window, which closes the
+    # moment we exit. Run from the executable's folder so the default CSV names
+    # resolve there, and pause before exiting so the output (or error) stays readable.
+    frozen = getattr(sys, "frozen", False)
+    if frozen:
+        os.chdir(os.path.dirname(sys.executable))
+
+    try:
+        code = main()
+    except (KeyboardInterrupt, EOFError):
+        print()
+        code = 1
+    except Exception:
+        traceback.print_exc()
+        print("\n  [ERROR] Sleep Detective hit an unexpected problem (details above).")
+        code = 1
+
+    if frozen:
+        try:
+            input(">>> Press Enter to close this window...")
+        except (KeyboardInterrupt, EOFError):
+            pass
+    return code
+
+
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(run())
